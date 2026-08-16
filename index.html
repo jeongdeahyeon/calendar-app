@@ -456,8 +456,8 @@
 
   <script>
   (function(){
-    var CATEGORY_COLOR = { work:'#4f6df5', personal:'#22c07d', etc:'#f59e0b' };
-  var CATEGORY_LABEL = { work:'업무', personal:'개인', etc:'기타' };
+    var CATEGORY_COLOR = { work:'#4f6df5', personal:'#22c07d', etc:'#f59e0b', band:'#8b5cf6' };
+  var CATEGORY_LABEL = { work:'업무', personal:'개인', etc:'기타', band:'밴드' };
 
   var GH_OWNER = 'jeongdeahyeon';
   var GH_REPO = 'calendar-app-data';
@@ -792,16 +792,24 @@
       meta.className='meta';
       meta.textContent = (ev.time ? ev.time+' · ' : '') + CATEGORY_LABEL[ev.category] + (ev.memo ? ' · '+ev.memo : '');
       info.appendChild(title); info.appendChild(meta);
-      var del = document.createElement('button');
-      del.className='del';
-      del.textContent='삭제';
-      del.addEventListener('click', function(){
-                events = events.filter(function(e){return e.id!==ev.id;});
-        renderEventList();
-        render();
-        persist('일정 삭제: ' + ev.title);
-        });
-      row.appendChild(dot); row.appendChild(info); row.appendChild(del);
+      if(ev.source === 'band'){
+                var badge = document.createElement('span');
+                badge.className='meta';
+                badge.style.color = 'var(--text-dim)';
+                badge.textContent = '밴드 연동';
+                row.appendChild(dot); row.appendChild(info); row.appendChild(badge);
+      } else {
+                var del = document.createElement('button');
+                del.className='del';
+                del.textContent='삭제';
+                del.addEventListener('click', function(){
+                            events = events.filter(function(e){return e.id!==ev.id;});
+                            renderEventList();
+                            render();
+                            persist('일정 삭제: ' + ev.title);
+                });
+                row.appendChild(dot); row.appendChild(info); row.appendChild(del);
+      }
       eventList.appendChild(row);
       });
     }
