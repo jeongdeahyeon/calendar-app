@@ -349,6 +349,27 @@ text-align:center;
 .agenda{
 display:none;
 }
+.view-toggle{
+display:none;
+gap:6px;
+margin-bottom:10px;
+}
+.view-toggle-btn{
+flex:1;
+border:1px solid var(--border);
+background:var(--card);
+color:var(--text-dim);
+padding:8px 0;
+border-radius:10px;
+font-size:13px;
+font-weight:600;
+cursor:pointer;
+}
+.view-toggle-btn.active{
+background:var(--accent);
+border-color:var(--accent);
+color:#fff;
+}
 .agenda-day{
 margin-bottom:16px;
 }
@@ -434,8 +455,11 @@ transform:translateX(-50%);
 .more-label{display:none;}
 .brand h1{font-size:17px;}
 .actions{width:100%;justify-content:flex-end;}
+.view-toggle{display:flex;}
 .calendar-card{display:none;}
-.agenda{display:block;}
+.agenda{display:none;}
+body.view-agenda .agenda{display:block;}
+body.view-grid .calendar-card{display:block;}
 }
 </style>
 </head>
@@ -465,6 +489,11 @@ transform:translateX(-50%);
 <span class="sync-dot" id="syncDot"></span>
 <span id="syncText">연결 중...</span>
 <button class="sync-retry" id="syncRetry" style="display:none;">다시 시도</button>
+</div>
+
+<div class="view-toggle" id="viewToggle">
+<button class="view-toggle-btn" id="viewAgendaBtn" type="button">목록</button>
+<button class="view-toggle-btn" id="viewGridBtn" type="button">달력</button>
 </div>
 
 <div class="calendar-card" id="calendarCard">
@@ -601,6 +630,22 @@ var setupErr = document.getElementById('setupErr');
 var tokenInput = document.getElementById('tokenInput');
 var tokenSaveBtn = document.getElementById('tokenSaveBtn');
 var settingsBtn = document.getElementById('settingsBtn');
+var viewAgendaBtn = document.getElementById('viewAgendaBtn');
+var viewGridBtn = document.getElementById('viewGridBtn');
+
+function setMobileView(view){
+document.body.classList.remove('view-agenda','view-grid');
+document.body.classList.add('view-' + view);
+viewAgendaBtn.classList.toggle('active', view === 'agenda');
+viewGridBtn.classList.toggle('active', view === 'grid');
+try{ localStorage.setItem('calendarAppMobileView', view); }catch(e){}
+if(view === 'agenda') scrollAgendaToToday();
+}
+viewAgendaBtn.addEventListener('click', function(){ setMobileView('agenda'); });
+viewGridBtn.addEventListener('click', function(){ setMobileView('grid'); });
+var savedMobileView = null;
+try{ savedMobileView = localStorage.getItem('calendarAppMobileView'); }catch(e){}
+setMobileView(savedMobileView === 'grid' ? 'grid' : 'agenda');
 
 function showSetupScreen(showError){
 calendarCard.style.display = 'none';
