@@ -277,8 +277,8 @@ padding:8px 10px;
 width:9px;height:9px;border-radius:999px;flex-shrink:0;
 }
 .event-row .info{flex:1;min-width:0;}
-.event-row .info .title{font-size:13.5px;font-weight:600;}
-.event-row .info .meta{font-size:11.5px;color:var(--text-dim);}
+.event-row .info .title{font-size:13.5px;font-weight:600;overflow-wrap:break-word;word-break:keep-all;}
+.event-row .info .meta{font-size:11.5px;color:var(--text-dim);overflow-wrap:break-word;word-break:keep-all;}
 .event-row .del{
 border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:13px;
 }
@@ -346,6 +346,78 @@ line-height:1.6;
 text-align:center;
 }
 
+.agenda{
+display:none;
+}
+.agenda-day{
+margin-bottom:16px;
+}
+.agenda-day-header{
+display:flex;
+align-items:baseline;
+gap:6px;
+font-size:13px;
+font-weight:700;
+color:var(--text-dim);
+padding:6px 2px;
+cursor:pointer;
+}
+.agenda-day-header .dnum{
+font-size:15px;
+color:var(--text);
+}
+.agenda-day-header.today{
+color:var(--accent);
+}
+.agenda-day-header.today .dnum{
+color:var(--accent);
+}
+.agenda-day-header.sunday .dnum{color:#e5484d;}
+.agenda-day-header.saturday .dnum{color:#4f6df5;}
+.agenda-events{
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+.agenda-event{
+display:flex;
+align-items:center;
+gap:8px;
+background:var(--card);
+border:1px solid var(--border);
+border-radius:10px;
+padding:9px 10px;
+cursor:pointer;
+box-shadow:var(--shadow);
+}
+.agenda-event .adot{
+width:8px;height:8px;border-radius:999px;flex-shrink:0;
+}
+.agenda-event .atext{
+flex:1;
+min-width:0;
+}
+.agenda-event .atitle{
+font-size:13.5px;
+font-weight:600;
+overflow-wrap:break-word;
+word-break:keep-all;
+}
+.agenda-event .ameta{
+font-size:11.5px;
+color:var(--text-dim);
+margin-top:2px;
+overflow-wrap:break-word;
+word-break:keep-all;
+}
+.agenda-empty-today{
+font-size:12.5px;
+color:var(--text-dim);
+padding:8px 10px;
+border:1px dashed var(--border);
+border-radius:10px;
+}
+
 @media (max-width:520px){
 .app{padding:14px 8px 40px;}
 .cell{min-height:74px;padding:4px;}
@@ -362,6 +434,8 @@ transform:translateX(-50%);
 .more-label{display:none;}
 .brand h1{font-size:17px;}
 .actions{width:100%;justify-content:flex-end;}
+.calendar-card{display:none;}
+.agenda{display:block;}
 }
 </style>
 </head>
@@ -399,6 +473,8 @@ transform:translateX(-50%);
 </div>
 <div class="grid" id="grid"></div>
 </div>
+
+<div class="agenda" id="agenda"></div>
 
 <div class="setup-screen" id="setupScreen" style="display:none;">
 <h2>🔑 GitHub 토큰 연결</h2>
@@ -550,6 +626,7 @@ events = data.events;
 showCalendar();
 setSyncStatus('ok', '동기화됨');
 render();
+scrollAgendaToToday();
 startPolling();
 tokenSaveBtn.disabled = false;
 tokenSaveBtn.textContent = '연결하기';
@@ -678,6 +755,7 @@ events = data.events;
 showCalendar();
 setSyncStatus('ok', '동기화됨');
 render();
+scrollAgendaToToday();
 startPolling();
 }).catch(function(err){
 setSyncStatus('err', '연결 실패 - 토큰을 다시 확인해주세요');
@@ -692,6 +770,11 @@ else { refreshFromRemote(true); }
 });
 
 function render(){
+renderGrid();
+renderAgenda();
+}
+
+function renderGrid(){
 monthLabel.textContent = state.year + '년 ' + (state.month+1) + '월';
 grid.innerHTML = '';
 
@@ -761,6 +844,90 @@ grid.appendChild(cell);
 }
 }
 
+var agendaEl = document.getElementById('agenda');
+var weekdayNames = ['일','월','화','수','목','금','토'];
+
+function renderAgenda(){
+agendaEl.innerHTML = '';
+var byDate = {};
+events.forEach(function(ev){
+if(!byDate[ev.date]) byDate[ev.date] = [];
+byDate[ev.date].push(ev);
+});
+var dateList = Object.keys(byDate);
+if(dateList.indexOf(todayStr) === -1) dateList.push(todayStr);
+dateList.sort();
+
+dateList.forEach(function(dstr){
+var dayEvents = (byDate[dstr]||[]).slice().sort(function(a,b){return (a.time||'99:99').localeCompare(b.time||'99:99');});
+var d = new Date(dstr+'T00:00:00');
+var wd = d.getDay();
+
+var block = document.createElement('div');
+block.className = 'agenda-day';
+block.id = 'agenda-' + dstr;
+
+var header = document.createElement('div');
+header.className = 'agenda-day-header';
+if(dstr === todayStr) header.classList.add('today');
+if(wd===0) header.classList.add('sunday');
+if(wd===6) header.classList.add('saturday');
+var dnum = document.createElement('span');
+dnum.className = 'dnum';
+dnum.textContent = (d.getMonth()+1) + '월 ' + d.getDate() + '일';
+var dwd = document.createElement('span');
+dwd.textContent = '(' + weekdayNames[wd] + ')' + (dstr===todayStr ? ' · 오늘' : '');
+header.appendChild(dnum);
+header.appendChild(dwd);
+(function(dstrClosure){
+header.addEventListener('click', function(){ openModal(dstrClosure); });
+})(dstr);
+block.appendChild(header);
+
+var list = document.createElement('div');
+list.className = 'agenda-events';
+if(!dayEvents.length){
+var empty = document.createElement('div');
+empty.className = 'agenda-empty-today';
+empty.textContent = '일정이 없습니다. 눌러서 추가';
+(function(dstrClosure){
+empty.addEventListener('click', function(){ openModal(dstrClosure); });
+})(dstr);
+list.appendChild(empty);
+} else {
+dayEvents.forEach(function(ev){
+var item = document.createElement('div');
+item.className = 'agenda-event';
+var dot = document.createElement('div');
+dot.className = 'adot';
+dot.style.background = eventColor(ev);
+var text = document.createElement('div');
+text.className = 'atext';
+var title = document.createElement('div');
+title.className = 'atitle';
+title.textContent = ev.title;
+var meta = document.createElement('div');
+meta.className = 'ameta';
+var metaLabel = ev.source === 'band' ? ('밴드' + (ev.author ? ' · ' + ev.author : '')) : CATEGORY_LABEL[ev.category];
+meta.textContent = (ev.time ? ev.time + ' · ' : '') + metaLabel + (ev.memo ? ' · ' + ev.memo : '');
+text.appendChild(title); text.appendChild(meta);
+item.appendChild(dot); item.appendChild(text);
+(function(dstrClosure){
+item.addEventListener('click', function(){ openModal(dstrClosure); });
+})(dstr);
+list.appendChild(item);
+});
+}
+block.appendChild(list);
+agendaEl.appendChild(block);
+});
+}
+
+function scrollAgendaToToday(){
+var el = document.getElementById('agenda-' + todayStr);
+if(el) el.scrollIntoView({ block: 'start' });
+}
+
 function openModal(dstr){
 state.selectedDate = dstr;
 var d = new Date(dstr+'T00:00:00');
@@ -802,11 +969,13 @@ meta.className='meta';
 meta.textContent = (ev.time ? ev.time+' · ' : '') + CATEGORY_LABEL[ev.category] + (ev.memo ? ' · '+ev.memo : '');
 info.appendChild(title); info.appendChild(meta);
 if(ev.source === 'band'){
-var badge = document.createElement('span');
+var badge = document.createElement('div');
 badge.className='meta';
 badge.style.color = eventColor(ev);
+badge.style.marginTop = '2px';
 badge.textContent = ev.author ? '밴드 · ' + ev.author : '밴드 연동';
-row.appendChild(dot); row.appendChild(info); row.appendChild(badge);
+info.appendChild(badge);
+row.appendChild(dot); row.appendChild(info);
 } else {
 var del = document.createElement('button');
 del.className='del';
@@ -848,6 +1017,7 @@ state.month++; if(state.month>11){state.month=0; state.year++;} render();
 });
 document.getElementById('todayBtn').addEventListener('click', function(){
 state.year = today.getFullYear(); state.month = today.getMonth(); render();
+scrollAgendaToToday();
 });
 document.getElementById('addBtn').addEventListener('click', function(){
 openModal(todayStr);
